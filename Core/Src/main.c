@@ -60,7 +60,13 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+double ADC_to_Voltage(int ADCValue) {
+	return ADCValue*3.3/4096;
+}
 
+double resistanceCalculator(int reference_resistance, double voltage_value) {
+	return reference_resistance*voltage_value/(3.3-voltage_value);
+}
 /* USER CODE END 0 */
 
 /**
@@ -72,7 +78,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
   uint16_t raw;
-  char msg[10];
+  char msg[50];
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -101,14 +107,21 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
   while (1)
   {
 	HAL_GPIO_WritePin(Timing_GPIO_Port, Timing_Pin, GPIO_PIN_SET);
+
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	raw = HAL_ADC_GetValue(&hadc1);
+	if (raw > 1600 && raw < 2400) {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	} else {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	}
 	HAL_GPIO_WritePin(Timing_GPIO_Port, Timing_Pin, GPIO_PIN_RESET);
-	sprintf(msg, "%hu\r\n", raw);
+	sprintf(msg, "%lf\r\n", resistanceCalculator(2200, ADC_to_Voltage(raw)));
 	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 	HAL_Delay(1);
     /* USER CODE END WHILE */
