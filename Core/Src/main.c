@@ -79,6 +79,9 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint16_t raw;
   char msg[50];
+  uint16_t selected_resistors;
+
+//  int reference_res;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -102,26 +105,41 @@ int main(void)
   MX_ADC1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  LCR_LCD_Init();
+  LCR_LCD_WriteString("LCR Meter!!!!", 14);
 
+  LCR_ShiftReg_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+//  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
   while (1)
   {
-	HAL_GPIO_WritePin(Timing_GPIO_Port, Timing_Pin, GPIO_PIN_SET);
-
+//	ohm1k_sel = HAL_GPIO_ReadPin(ohm1k_sel_GPIO_Port, ohm1k_sel_Pin);
+//	ohm2k2_sel = HAL_GPIO_ReadPin(ohm2k2_sel_GPIO_Port, ohm2k2_sel_Pin);
+//	ohm3k9_sel = HAL_GPIO_ReadPin(ohm3k9_sel_GPIO_Port, ohm3k9_sel_Pin);
+//	if (ohm1k_sel) {
+//		reference_res = 1000;
+//	} else if (ohm2k2_sel) {
+//		reference_res = 2200;
+//	} else if (ohm3k9_sel) {
+//		reference_res = 3900;
+//	}
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	raw = HAL_ADC_GetValue(&hadc1);
-	if (raw > 1600 && raw < 2400) {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	} else {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-	}
-	HAL_GPIO_WritePin(Timing_GPIO_Port, Timing_Pin, GPIO_PIN_RESET);
-	sprintf(msg, "%lf\r\n", resistanceCalculator(2200, ADC_to_Voltage(raw)));
+
+	selected_resistors = LCR_ShiftReg_ReadBits();
+
+//	if (raw > 1600 && raw < 2400) {
+//		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+//	} else {
+//		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+//	}
+
+	double voltage = ADC_to_Voltage(raw);
+	sprintf(msg, "%lf %lf %d %d\r\n", resistanceCalculator(2200, voltage), voltage, raw, selected_resistors);
 	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 	HAL_Delay(1);
     /* USER CODE END WHILE */
@@ -290,13 +308,38 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, Timing_Pin|LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOF, LCD_E_Pin|LCD_RW_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : Timing_Pin LED_Pin */
-  GPIO_InitStruct.Pin = Timing_Pin|LED_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, LCD_D7_Pin|LCD_D4_Pin|ShiftReg_Load_Pin|ShiftReg_Clk_Pin
+                          |LCD_D5_Pin|LCD_D6_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LCD_RS_Pin|ShiftReg_Out_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : LCD_E_Pin LCD_RW_Pin */
+  GPIO_InitStruct.Pin = LCD_E_Pin|LCD_RW_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LCD_D7_Pin LCD_D4_Pin ShiftReg_Load_Pin ShiftReg_Clk_Pin
+                           LCD_D5_Pin LCD_D6_Pin */
+  GPIO_InitStruct.Pin = LCD_D7_Pin|LCD_D4_Pin|ShiftReg_Load_Pin|ShiftReg_Clk_Pin
+                          |LCD_D5_Pin|LCD_D6_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LCD_RS_Pin ShiftReg_Out_Pin */
+  GPIO_InitStruct.Pin = LCD_RS_Pin|ShiftReg_Out_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
