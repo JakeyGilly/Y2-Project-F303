@@ -86,6 +86,11 @@ extern void LCR_LCD_WriteChar (char ch);
 extern void LCR_LCD_WriteString (char *ch, int maxLength);
 extern void LCR_LCD_DefineChar (int ch, char *data);
 
+// Shift register
+extern void LCR_ShiftReg_Init(void);
+extern void LCR_ShiftReg_ClockPulse(void);
+extern uint16_t LCR_ShiftReg_ReadBits(void);
+
 // Setting up the GPIO for the buttons, switches and ADC
 extern void LCR_Init_Inputs(void);
 

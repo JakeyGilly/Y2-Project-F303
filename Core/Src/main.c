@@ -80,8 +80,8 @@ int main(void)
   uint16_t raw;
   char msg[50];
   uint16_t selected_resistors;
-
 //  int reference_res;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -113,22 +113,16 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  //  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
   while (1)
   {
-//	ohm1k_sel = HAL_GPIO_ReadPin(ohm1k_sel_GPIO_Port, ohm1k_sel_Pin);
-//	ohm2k2_sel = HAL_GPIO_ReadPin(ohm2k2_sel_GPIO_Port, ohm2k2_sel_Pin);
-//	ohm3k9_sel = HAL_GPIO_ReadPin(ohm3k9_sel_GPIO_Port, ohm3k9_sel_Pin);
-//	if (ohm1k_sel) {
-//		reference_res = 1000;
-//	} else if (ohm2k2_sel) {
-//		reference_res = 2200;
-//	} else if (ohm3k9_sel) {
-//		reference_res = 3900;
-//	}
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	raw = HAL_ADC_GetValue(&hadc1);
+
+	for (int i = 0; i < 5; i++) {
+		LCR_ShiftReg_ClockPulse();
+	}
 
 	selected_resistors = LCR_ShiftReg_ReadBits();
 
@@ -139,7 +133,11 @@ int main(void)
 //	}
 
 	double voltage = ADC_to_Voltage(raw);
-	sprintf(msg, "%lf %lf %d %d\r\n", resistanceCalculator(2200, voltage), voltage, raw, selected_resistors);
+	sprintf(msg, "%lf %lf %d ", resistanceCalculator(2200, voltage), voltage, raw);
+	for (int i = 15; i >= 0; i--) {
+	    sprintf(msg + strlen(msg), "%d", (selected_resistors >> i) & 1);
+	}
+	sprintf(msg + strlen(msg), "\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 	HAL_Delay(1);
     /* USER CODE END WHILE */

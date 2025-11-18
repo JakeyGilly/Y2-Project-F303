@@ -626,8 +626,8 @@ void LCR_ShiftReg_ClockPulse(void) {
     LCR_MicroDelay(2);
 }
 
-// Internal helper: read 11 bits (LSB first) after a parallel load.
-uint16_t LCR_ShiftReg_ReadBits() {
+// read 11 bits (LSB first) after a parallel load.
+uint16_t LCR_ShiftReg_ReadBits(void) {
     uint16_t value = 0;
 
     // Pulse LOAD low briefly to latch inputs
