@@ -607,9 +607,9 @@ void LCR_FuncGen_Update(uint32_t rate) {
 
 void LCR_ShiftReg_Init(void) {
     // Configure Clk and Load as outputs, DATA as input with pull-up disabled (or pull-up if you need)
-    LCR_Set_As_Output(GPIOB, 5); // Clk
-    LCR_Set_As_Output(GPIOB, 4); // Load
-    LCR_Set_As_Input(GPIOA, 11, NOPULL); // Data
+    LCR_Set_As_Output(5, GPIOB); // Clk
+    LCR_Set_As_Output(4, GPIOB); // Load
+    LCR_Set_As_Input(11, GPIOA, NOPULL); // Data
 
     // Ensure known idle states: clock low, load high
     GPIOB->BSRR  = 1UL << 21;  // set CLK = 0
@@ -649,7 +649,7 @@ uint16_t LCR_ShiftReg_ReadBits(void) {
         value |= (bit << i);
 
         // pulse clock to shift next bit out
-        ShiftReg_ClockPulse();
+        LCR_ShiftReg_ClockPulse();
     }
 
     return value;
