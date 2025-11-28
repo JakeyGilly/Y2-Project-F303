@@ -67,8 +67,14 @@ void Error_Handler(void);
 #define LCD_D4_GPIO_Port GPIOB
 #define LCD_RS_Pin GPIO_PIN_8
 #define LCD_RS_GPIO_Port GPIOA
+#define Btn_Left_Pin GPIO_PIN_9
+#define Btn_Left_GPIO_Port GPIOA
+#define Btn_Right_Pin GPIO_PIN_10
+#define Btn_Right_GPIO_Port GPIOA
 #define ShiftReg_Out_Pin GPIO_PIN_11
 #define ShiftReg_Out_GPIO_Port GPIOA
+#define LED_Pin GPIO_PIN_3
+#define LED_GPIO_Port GPIOB
 #define ShiftReg_Load_Pin GPIO_PIN_4
 #define ShiftReg_Load_GPIO_Port GPIOB
 #define ShiftReg_Clk_Pin GPIO_PIN_5

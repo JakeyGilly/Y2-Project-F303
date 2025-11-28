@@ -43,6 +43,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+TIM_HandleTypeDef htim16;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -54,6 +56,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM16_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -67,6 +70,11 @@ double ADC_to_Voltage(int ADCValue) {
 double resistanceCalculator(int reference_resistance, double voltage_value) {
 	return reference_resistance*voltage_value/(3.3-voltage_value);
 }
+
+double timToTime(int timValue) {
+	// maxvalue of timer is 65535, the max time the timer can run is 0.6554
+	return (0.6554/65535)*timValue;
+}
 /* USER CODE END 0 */
 
 /**
@@ -79,7 +87,10 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint16_t raw;
   char msg[50];
+  char capMsg[20];
   uint16_t selected_resistors;
+  uint16_t timer_val;
+  int capCharged = 0;
 //  int reference_res;
 
   /* USER CODE END 1 */
@@ -104,11 +115,13 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC1_Init();
   MX_USART2_UART_Init();
+  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
   LCR_LCD_Init();
   LCR_LCD_WriteString("LCR Meter!!!!", 14);
 
   LCR_ShiftReg_Init();
+  HAL_TIM_Base_Start(&htim16);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -119,6 +132,10 @@ int main(void)
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	raw = HAL_ADC_GetValue(&hadc1);
+	if (raw >= 2580) {
+		// capacitor charged
+		timer_val = __HAL_TIM_GET_COUNTER(&htim16);
+	}
 
 	for (int i = 0; i < 5; i++) {
 		LCR_ShiftReg_ClockPulse();
@@ -136,6 +153,9 @@ int main(void)
 	sprintf(msg, "%lf %lf %d ", resistanceCalculator(2200, voltage), voltage, raw);
 	for (int i = 15; i >= 0; i--) {
 	    sprintf(msg + strlen(msg), "%d", (selected_resistors >> i) & 1);
+	}
+	if (capCharged) {
+		sprintf(msg + strlen(msg), " %d", timer_val);
 	}
 	sprintf(msg + strlen(msg), "\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
@@ -165,7 +185,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -259,6 +279,38 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief TIM16 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM16_Init(void)
+{
+
+  /* USER CODE BEGIN TIM16_Init 0 */
+
+  /* USER CODE END TIM16_Init 0 */
+
+  /* USER CODE BEGIN TIM16_Init 1 */
+
+  /* USER CODE END TIM16_Init 1 */
+  htim16.Instance = TIM16;
+  htim16.Init.Prescaler = 80-1;
+  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim16.Init.Period = 65535;
+  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim16.Init.RepetitionCounter = 0;
+  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM16_Init 2 */
+
+  /* USER CODE END TIM16_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -314,8 +366,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOF, LCD_E_Pin|LCD_RW_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LCD_D7_Pin|LCD_D4_Pin|ShiftReg_Load_Pin|ShiftReg_Clk_Pin
-                          |LCD_D5_Pin|LCD_D6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LCD_D7_Pin|LCD_D4_Pin|LED_Pin|ShiftReg_Load_Pin
+                          |ShiftReg_Clk_Pin|LCD_D5_Pin|LCD_D6_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LCD_RS_Pin|ShiftReg_Out_Pin, GPIO_PIN_RESET);
@@ -327,10 +379,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LCD_D7_Pin LCD_D4_Pin ShiftReg_Load_Pin ShiftReg_Clk_Pin
-                           LCD_D5_Pin LCD_D6_Pin */
-  GPIO_InitStruct.Pin = LCD_D7_Pin|LCD_D4_Pin|ShiftReg_Load_Pin|ShiftReg_Clk_Pin
-                          |LCD_D5_Pin|LCD_D6_Pin;
+  /*Configure GPIO pins : LCD_D7_Pin LCD_D4_Pin LED_Pin ShiftReg_Load_Pin
+                           ShiftReg_Clk_Pin LCD_D5_Pin LCD_D6_Pin */
+  GPIO_InitStruct.Pin = LCD_D7_Pin|LCD_D4_Pin|LED_Pin|ShiftReg_Load_Pin
+                          |ShiftReg_Clk_Pin|LCD_D5_Pin|LCD_D6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -341,6 +393,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Btn_Left_Pin Btn_Right_Pin */
+  GPIO_InitStruct.Pin = Btn_Left_Pin|Btn_Right_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
