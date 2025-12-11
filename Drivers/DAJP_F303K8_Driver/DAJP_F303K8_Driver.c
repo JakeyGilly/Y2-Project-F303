@@ -628,9 +628,8 @@ void LCR_ShiftReg_ClockPulse(void) {
 
 // read 11 bits (LSB first) after a parallel load. shift 5 times first.
 uint16_t LCR_ShiftReg_ReadBits(void) {
-	// 0000011111100000
-	// 00000CBAHGFEDCBA
-	// 00000 1k 2k2 4k7 10k 22k 47k 100k 220k 470k 1M 2M2
+	// ABCDEFGHABC00000
+	// 2M2 1M 470k 220k 100k 47k 22k 10k 4k7 2k2 1k 00000
     uint16_t value = 0;
 
     // Pulse LOAD low briefly to latch inputs
@@ -638,20 +637,16 @@ uint16_t LCR_ShiftReg_ReadBits(void) {
     LCR_MicroDelay(2);
 
     GPIOB->BSRR = 1UL << 20; // LOAD = 0 -> parallel load
-    LCR_MicroDelay(8);    // hold time (tPLH)
-
+    LCR_MicroDelay(2);
     LCR_ShiftReg_ClockPulse();
+    LCR_MicroDelay(8);    // hold time (tPLH)
 
     GPIOB->BSRR = 1UL << 4; // LOAD = 1 -> enter shift mode
     LCR_MicroDelay(2);
 
-	for (int i = 0; i < 5; i++) {
-		LCR_ShiftReg_ClockPulse();
-	}
-
 
     // Now shift out bits: first bit shifted out is LSB.
-    for (unsigned int i = 0; i < 11; i++) {
+    for (unsigned int i = 0; i < 16; i++) {
         // Read data pin (sample while clock is low, before rising edge)
         uint16_t bit = (GPIOA->IDR & (1UL << 11)) ? 1 : 0;
 

@@ -89,6 +89,7 @@ int main(void)
   char msg[50];
   char capMsg[20];
   uint16_t selected_resistors;
+  uint32_t selected_resistor_value;
   uint16_t timer_val;
   int capCharged = 0;
 //  int reference_res;
@@ -126,7 +127,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  //  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
   while (1)
   {
 	HAL_ADC_Start(&hadc1);
@@ -139,18 +140,54 @@ int main(void)
 
 	selected_resistors = LCR_ShiftReg_ReadBits();
 
-//	if (raw > 1600 && raw < 2400) {
-//		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-//	} else {
-//		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-//	}
+
+	switch (selected_resistors) {
+	case 0b1000000000000000:
+		selected_resistor_value = 2200000;
+		break;
+	case 0b0100000000000000:
+		selected_resistor_value = 1000000;
+		break;
+	case 0b0010000000000000:
+		selected_resistor_value = 470000;
+		break;
+	case 0b0001000000000000:
+		selected_resistor_value = 220000;
+		break;
+	case 0b0000100000000000:
+		selected_resistor_value = 100000;
+		break;
+	case 0b0000010000000000:
+		selected_resistor_value = 47000;
+		break;
+	case 0b0000001000000000:
+		selected_resistor_value = 22000;
+		break;
+	case 0b0000000100000000:
+		selected_resistor_value = 10000;
+		break;
+	case 0b0000000010000000:
+		selected_resistor_value = 4700;
+		break;
+	case 0b0000000001000000:
+		selected_resistor_value = 2200;
+		break;
+	case 0b0000000000100000:
+		selected_resistor_value = 1000;
+		break;
+	}
+
+	if (raw > 1600 && raw < 2400) {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	} else {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	}
 
 	double voltage = ADC_to_Voltage(raw);
-	sprintf(msg, "resistance %lf voltage %lf raw %d ", resistanceCalculator(2200, voltage), voltage, raw);
-	for (int i = 15; i >= 0; i--) {
-	    sprintf(msg + strlen(msg), "%d", (selected_resistors >> i) & 1);
-	}
-//	if (capCharged) {
+	sprintf(msg, "resistance %lf voltage %lf raw %d resistor %d", resistanceCalculator(selected_resistor_value, voltage)*1.538, voltage, raw, selected_resistor_value);
+// for 1k JG factor is 1.538
+	// for 1M2 JG Factor is 1.433
+	//	if (capCharged) {
 //		sprintf(msg + strlen(msg), " %d", timer_val);
 //	}
 	sprintf(msg + strlen(msg), "\r\n");
