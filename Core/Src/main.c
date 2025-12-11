@@ -132,14 +132,10 @@ int main(void)
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	raw = HAL_ADC_GetValue(&hadc1);
-	if (raw >= 2580) {
-		// capacitor charged
-		timer_val = __HAL_TIM_GET_COUNTER(&htim16);
-	}
-
-	for (int i = 0; i < 5; i++) {
-		LCR_ShiftReg_ClockPulse();
-	}
+//	if (raw >= 2580) {
+//		// capacitor charged
+//		timer_val = __HAL_TIM_GET_COUNTER(&htim16);
+//	}
 
 	selected_resistors = LCR_ShiftReg_ReadBits();
 
@@ -150,13 +146,13 @@ int main(void)
 //	}
 
 	double voltage = ADC_to_Voltage(raw);
-	sprintf(msg, "%lf %lf %d ", resistanceCalculator(2200, voltage), voltage, raw);
+	sprintf(msg, "resistance %lf voltage %lf raw %d ", resistanceCalculator(2200, voltage), voltage, raw);
 	for (int i = 15; i >= 0; i--) {
 	    sprintf(msg + strlen(msg), "%d", (selected_resistors >> i) & 1);
 	}
-	if (capCharged) {
-		sprintf(msg + strlen(msg), " %d", timer_val);
-	}
+//	if (capCharged) {
+//		sprintf(msg + strlen(msg), " %d", timer_val);
+//	}
 	sprintf(msg + strlen(msg), "\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 	HAL_Delay(1);
