@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -75,6 +76,20 @@ double timToTime(int timValue) {
 	// maxvalue of timer is 65535, the max time the timer can run is 0.6554
 	return (0.6554/65535)*timValue;
 }
+
+char* LCR_UnitConverter(double value, char* output) {
+    const char* units[] = { "f", "p", "n", "µ", "m", "", "k", "M" };
+    const double multipliers[] = { 1e-15, 1e-12, 1e-9, 1e-6, 1e-3, 1, 1e3, 1e6 };
+
+    for (int i = 7; i >= 0; i--) {
+        if (fabs(value) < multipliers[i]) continue;
+        double scaled = value / multipliers[i];
+        sprintf(output, "%.2f%s", scaled, units[i]);
+        return output;
+    }
+    sprintf(output, "%.2f%s", value, units[5]);
+    return output;
+}
 /* USER CODE END 0 */
 
 /**
@@ -87,7 +102,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
   uint16_t raw;
   char msg[50];
-  char capMsg[20];
+  char formattedNum[20];
   uint16_t selected_resistors;
   uint32_t selected_resistor_value;
   uint16_t timer_val;
@@ -184,8 +199,20 @@ int main(void)
 	}
 
 	double voltage = ADC_to_Voltage(raw);
-	sprintf(msg, "resistance %lf voltage %lf raw %d resistor %d", resistanceCalculator(selected_resistor_value, voltage)*1.538, voltage, raw, selected_resistor_value);
-// for 1k JG factor is 1.538
+
+
+	LCR_UnitConverter(resistanceCalculator(selected_resistor_value, voltage)*1.538, formattedNum);
+	sprintf(msg, "resistance %sΩ", formattedNum);
+
+	LCR_UnitConverter(voltage, formattedNum);
+	sprintf(msg + strlen(msg), " voltage %sV", formattedNum);
+
+	sprintf(msg + strlen(msg), " raw %d", raw);
+
+	LCR_UnitConverter(selected_resistor_value, formattedNum);
+	sprintf(msg + strlen(msg), " selected resistor %sΩ", formattedNum);
+
+	// for 1k JG factor is 1.538
 	// for 1M2 JG Factor is 1.433
 	//	if (capCharged) {
 //		sprintf(msg + strlen(msg), " %d", timer_val);

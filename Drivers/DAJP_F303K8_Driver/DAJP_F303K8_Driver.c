@@ -29,7 +29,6 @@
 #include "../DAJP_F303K8_Driver/DAJP_F303K8_Driver.h"
 
 #include <main.h>
-#include <stdbool.h>  // Required for bool, true and false
 
 ////////////////////////////////////////////////////////
 // First, some general purpose helper routines:
