@@ -65,20 +65,28 @@ static void MX_TIM16_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 double ADC_to_Voltage(int ADCValue) {
-	return ADCValue*3.3/4096;
+	return ADCValue*3.3/4095;
 }
 
 double resistanceCalculator(int reference_resistance, double voltage_value) {
-	// minus 0.7 from the diode
-	return reference_resistance*voltage_value/(3.3-0.7-voltage_value);
+	return reference_resistance*voltage_value/(3.3-0.7-voltage_value); // minus 0.7 because of diodes
 }
 
 double timToTime(int timValue) {
-	// maxvalue of timer is 65535, the max time the timer can run is 0.6554
-	return timValue*10^-5;
+	// maxvalue of timer is 65535, the max time the timer can run is 0.65535, the frequnecy the timer clock is running is 100kHz
+	return timValue*10^5;
 }
 
-char* LCR_UnitConverter(double value, char* output) {
+double average(double resistances[40]){
+	double sum = 0;
+	double average = 0.0;
+    for(int i = 0; i < 40; i++){
+       sum += resistances[i];
+    }
+    return sum/40;
+}
+
+void LCR_UnitConverter(double value, char* output) {
     const char* units[] = { "f", "p", "n", "µ", "m", "", "k", "M" };
     const double multipliers[] = { 1e-15, 1e-12, 1e-9, 1e-6, 1e-3, 1, 1e3, 1e6 };
 
@@ -104,11 +112,12 @@ int main(void)
   uint16_t raw;
   char msg[50];
   char formattedNum[20];
-  uint16_t selected_resistors;
+  uint16_t selected_resistors_mask;
   uint32_t selected_resistor_value;
+  double sampled_resistor_values[40];
+  double factor;
   uint16_t timer_val;
   int capCharged = 0;
-  double factor;
 //  int reference_res;
 
   /* USER CODE END 1 */
@@ -144,20 +153,15 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  LCR_LCD_Clear();
+  	LCR_LCD_WriteString("Measuring...", 13);
   while (1)
   {
-	HAL_ADC_Start(&hadc1);
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	raw = HAL_ADC_GetValue(&hadc1);
-//	if (raw >= 2580) {
-//		// capacitor charged
-//		timer_val = __HAL_TIM_GET_COUNTER(&htim16);
-//	}
-
-	selected_resistors = LCR_ShiftReg_ReadBits();
 
 
-	switch (selected_resistors) {
+	selected_resistors_mask = LCR_ShiftReg_ReadBits();
+
+	switch (selected_resistors_mask) {
 	case 0b1000000000000000:
 		selected_resistor_value = 2200000;
 		break;
@@ -193,59 +197,51 @@ int main(void)
 		break;
 	}
 
-	// 1613.1818181818 is ideal, round to 1610, 300 range
-	if (raw > 1310 && raw < 1910) {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-	} else {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	for (int i = 0; i < 40; i++) {
+		HAL_ADC_Start(&hadc1);
+		HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+		raw = HAL_ADC_GetValue(&hadc1);
+	//	if (raw >= 2580) {
+	//		// capacitor charged
+	//		timer_val = __HAL_TIM_GET_COUNTER(&htim16);
+	//	}
+
+
+		double voltage = ADC_to_Voltage(raw);
+		sampled_resistor_values[i] = resistanceCalculator(selected_resistor_value, voltage);
+		LCR_UnitConverter(voltage, formattedNum);
+		sprintf(msg, " voltage %sV", formattedNum);
+		sprintf(msg + strlen(msg), " raw %d", raw);
+		LCR_UnitConverter(sampled_resistor_values[i], formattedNum);
+		sprintf(msg + strlen(msg), " resistance %s", formattedNum);
+		sprintf(msg + strlen(msg), "\r\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		HAL_Delay(100);
 	}
 
-
-	double voltage = ADC_to_Voltage(raw);
-
-	switch (selected_resistor_value) {
-		case 1000000:
-		case 2200000:
-			factor = 0.8772;
-			break;
-		case 470000:
-			factor = 0.8835;
-			break;
-		case 100000:
-			factor = 0.905;
-			break;
-		case 47000:
-		case 22000:
-			factor = 0.9569;
-			break;
-		case 10000:
-			factor = 0.9551;
-			break;
-		case 4700:
-			factor = 0.9542;
-			break;
-		case 2200:
-			factor = 0.9783;
-			break;
-		case 1000:
-			factor = 1.006;
-			break;
-	}
-
-
-	LCR_UnitConverter(resistanceCalculator(selected_resistor_value, voltage)*factor, formattedNum);
-	sprintf(msg, "resistance %sΩ", formattedNum);
+	double avg = average(sampled_resistor_values);
 	LCR_LCD_Clear();
 	LCR_LCD_WriteString(formattedNum, strlen(formattedNum));
 
-	LCR_UnitConverter(voltage, formattedNum);
-	sprintf(msg + strlen(msg), " voltage %sV", formattedNum);
-
-	sprintf(msg + strlen(msg), " raw %d", raw);
-
+	sprintf(msg, "average %f", avg);
+	LCR_UnitConverter(avg, formattedNum);
+	sprintf(msg + strlen(msg), "resistance %sΩ", formattedNum);
 	LCR_UnitConverter(selected_resistor_value, formattedNum);
 	sprintf(msg + strlen(msg), " selected resistor %sΩ", formattedNum);
+	sprintf(msg + strlen(msg), " factor %f", factor);
 
+
+
+		// 1613.1818181818 is ideal, round to 1610, 300 range
+//		if (raw > 1310 && raw < 1910) {
+//			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+//		} else {
+//			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+//		}
+//	}
+//
+	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+	HAL_Delay(100);
 
 
 	// for 470k factor is 0.8835 ref 470k
@@ -260,9 +256,9 @@ int main(void)
 	//	if (capCharged) {
 //		sprintf(msg + strlen(msg), " %d", timer_val);
 //	}
-	sprintf(msg + strlen(msg), "\r\n");
-	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-	HAL_Delay(1);
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
