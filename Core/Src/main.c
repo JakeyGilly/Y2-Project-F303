@@ -69,12 +69,13 @@ double ADC_to_Voltage(int ADCValue) {
 }
 
 double resistanceCalculator(int reference_resistance, double voltage_value) {
-	return reference_resistance*voltage_value/(3.3-voltage_value);
+	// minus 0.7 from the diode
+	return reference_resistance*voltage_value/(3.3-0.7-voltage_value);
 }
 
 double timToTime(int timValue) {
 	// maxvalue of timer is 65535, the max time the timer can run is 0.6554
-	return (0.6554/65535)*timValue;
+	return timValue*10^-5;
 }
 
 char* LCR_UnitConverter(double value, char* output) {
@@ -107,6 +108,7 @@ int main(void)
   uint32_t selected_resistor_value;
   uint16_t timer_val;
   int capCharged = 0;
+  double factor;
 //  int reference_res;
 
   /* USER CODE END 1 */
@@ -134,7 +136,6 @@ int main(void)
   MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
   LCR_LCD_Init();
-  LCR_LCD_WriteString("LCR Meter!!!!", 14);
 
   LCR_ShiftReg_Init();
   HAL_TIM_Base_Start(&htim16);
@@ -192,17 +193,50 @@ int main(void)
 		break;
 	}
 
-	if (raw > 1600 && raw < 2400) {
+	// 1613.1818181818 is ideal, round to 1610, 300 range
+	if (raw > 1310 && raw < 1910) {
 		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 	} else {
 		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 	}
 
+
 	double voltage = ADC_to_Voltage(raw);
 
+	switch (selected_resistor_value) {
+		case 1000000:
+		case 2200000:
+			factor = 0.8772;
+			break;
+		case 470000:
+			factor = 0.8835;
+			break;
+		case 100000:
+			factor = 0.905;
+			break;
+		case 47000:
+		case 22000:
+			factor = 0.9569;
+			break;
+		case 10000:
+			factor = 0.9551;
+			break;
+		case 4700:
+			factor = 0.9542;
+			break;
+		case 2200:
+			factor = 0.9783;
+			break;
+		case 1000:
+			factor = 1.006;
+			break;
+	}
 
-	LCR_UnitConverter(resistanceCalculator(selected_resistor_value, voltage)*1.538, formattedNum);
+
+	LCR_UnitConverter(resistanceCalculator(selected_resistor_value, voltage)*factor, formattedNum);
 	sprintf(msg, "resistance %sΩ", formattedNum);
+	LCR_LCD_Clear();
+	LCR_LCD_WriteString(formattedNum, strlen(formattedNum));
 
 	LCR_UnitConverter(voltage, formattedNum);
 	sprintf(msg + strlen(msg), " voltage %sV", formattedNum);
@@ -212,8 +246,17 @@ int main(void)
 	LCR_UnitConverter(selected_resistor_value, formattedNum);
 	sprintf(msg + strlen(msg), " selected resistor %sΩ", formattedNum);
 
-	// for 1k JG factor is 1.538
-	// for 1M2 JG Factor is 1.433
+
+
+	// for 470k factor is 0.8835 ref 470k
+	// for 100k factor is 0.905 ref 100k
+	// for 1M factor is 0.8772 ref 1M
+	// for 20k factor is 0.9569 ref 2.2k
+	// for 10k factor is 0.9551 ref 10k
+	// for 5k factor is 0.9542 ref 4.7k
+	// for 2.7k factor is 0.9783 ref 2.2k
+	// for 1k factor is 1.006  ref 1k
+
 	//	if (capCharged) {
 //		sprintf(msg + strlen(msg), " %d", timer_val);
 //	}
