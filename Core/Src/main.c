@@ -65,7 +65,7 @@ static void MX_TIM16_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 double ADC_to_Voltage(int ADCValue) {
-	return ADCValue*3.3/4096;
+	return ADCValue*3.3/4095;
 }
 
 double resistanceCalculator(int reference_resistance, double voltage_value) {
@@ -74,11 +74,11 @@ double resistanceCalculator(int reference_resistance, double voltage_value) {
 }
 
 double timToTime(int timValue) {
-	// maxvalue of timer is 65535, the max time the timer can run is 0.6554
+	// maxvalue of timer is 65535, the max time the timer can run is 0.6554, so the frequnecy is 100kHz
 	return timValue*10^-5;
 }
 
-char* LCR_UnitConverter(double value, char* output) {
+void LCR_UnitConverter(double value, char* output) {
     const char* units[] = { "f", "p", "n", "µ", "m", "", "k", "M" };
     const double multipliers[] = { 1e-15, 1e-12, 1e-9, 1e-6, 1e-3, 1, 1e3, 1e6 };
 
@@ -86,10 +86,9 @@ char* LCR_UnitConverter(double value, char* output) {
         if (fabs(value) < multipliers[i]) continue;
         double scaled = value / multipliers[i];
         sprintf(output, "%.2f%s", scaled, units[i]);
-        return output;
+        return;
     }
-    sprintf(output, "%.2f%s", value, units[5]);
-    return output;
+    sprintf(output, "%.2f", value);
 }
 /* USER CODE END 0 */
 
@@ -104,7 +103,7 @@ int main(void)
   uint16_t raw;
   char msg[50];
   char formattedNum[20];
-  uint16_t selected_resistors;
+  uint16_t selected_resistors_mask;
   uint32_t selected_resistor_value;
   uint16_t timer_val;
   int capCharged = 0;
@@ -154,42 +153,42 @@ int main(void)
 //		timer_val = __HAL_TIM_GET_COUNTER(&htim16);
 //	}
 
-	selected_resistors = LCR_ShiftReg_ReadBits();
+	selected_resistors_mask = LCR_ShiftReg_ReadBits();
 
 
-	switch (selected_resistors) {
+	switch (selected_resistors_mask) {
 	case 0b1000000000000000:
-		selected_resistor_value = 2200000;
+		selected_resistor_value = 2226200; // 2M2
 		break;
 	case 0b0100000000000000:
-		selected_resistor_value = 1000000;
+		selected_resistor_value = 998500; // 1M
 		break;
 	case 0b0010000000000000:
-		selected_resistor_value = 470000;
+		selected_resistor_value = 469920; // 470k
 		break;
 	case 0b0001000000000000:
-		selected_resistor_value = 220000;
+		selected_resistor_value = 220220; // 220k
 		break;
 	case 0b0000100000000000:
-		selected_resistor_value = 100000;
+		selected_resistor_value = 98860; // 100k
 		break;
 	case 0b0000010000000000:
-		selected_resistor_value = 47000;
+		selected_resistor_value = 46908; // 47k
 		break;
 	case 0b0000001000000000:
-		selected_resistor_value = 22000;
+		selected_resistor_value = 21921; // 22k
 		break;
 	case 0b0000000100000000:
-		selected_resistor_value = 10000;
+		selected_resistor_value = 9954; // 10k
 		break;
 	case 0b0000000010000000:
-		selected_resistor_value = 4700;
+		selected_resistor_value = 4676; // 4k7
 		break;
 	case 0b0000000001000000:
-		selected_resistor_value = 2200;
+		selected_resistor_value = 2195; // 2k2
 		break;
 	case 0b0000000000100000:
-		selected_resistor_value = 1000;
+		selected_resistor_value = 995; // 1k
 		break;
 	}
 
@@ -204,30 +203,31 @@ int main(void)
 	double voltage = ADC_to_Voltage(raw);
 
 	switch (selected_resistor_value) {
-		case 1000000:
-		case 2200000:
+		case 998500:
+		case 2226200:
 			factor = 0.8772;
 			break;
-		case 470000:
+		case 469920:
+		case 220220: // maybe
 			factor = 0.8835;
 			break;
-		case 100000:
+		case 98860:
 			factor = 0.905;
 			break;
-		case 47000:
-		case 22000:
+		case 46908:
+		case 21921:
 			factor = 0.9569;
 			break;
-		case 10000:
+		case 9954:
 			factor = 0.9551;
 			break;
-		case 4700:
+		case 4676:
 			factor = 0.9542;
 			break;
-		case 2200:
+		case 2195:
 			factor = 0.9783;
 			break;
-		case 1000:
+		case 995:
 			factor = 1.006;
 			break;
 	}
