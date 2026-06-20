@@ -26,7 +26,7 @@
  * SOFTWARE.
  *----------------------------------------------------------------------------*/
 
-#include "../DAJP_F303K8_Driver/DAJP_F303K8_Driver.h"
+#include "./DAJP_F303K8_Driver.h"
 
 #include <main.h>
 

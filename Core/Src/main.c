@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "DAJP_F303K8_Driver/DAJP_F303K8_Driver.h"
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -75,7 +76,7 @@ double resistanceCalculator(int reference_resistance, double voltage_value) {
 
 double timToTime(int timValue) {
 	// maxvalue of timer is 65535, the max time the timer can run is 0.6554, so the frequnecy is 100kHz
-	return timValue*10^-5;
+	return timValue * 1e-5;
 }
 
 void LCR_UnitConverter(double value, char* output) {
